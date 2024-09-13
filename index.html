@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Socket.IO Chat</title>
+    <style>
+        /* Общие стили */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body, html {
+            font-family: 'Arial', sans-serif;
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #f4f4f4;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+            max-height: 100vh;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        /* Заголовок */
+        .header {
+            background-color: #333;
+            color: white;
+            text-align: center;
+            padding: 15px;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        /* Блок сообщений */
+        #messages {
+            list-style: none;
+            padding: 20px;
+            flex-grow: 1;
+            overflow-y: auto;
+            background-color: #f4f4f4;
+        }
+
+        #messages > li {
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #fff;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        #messages > li:nth-child(odd) {
+            background-color: #e0e0e0;
+        }
+
+        /* Блок отправки сообщений */
+        #form {
+            display: flex;
+            padding: 15px;
+            background-color: #fff;
+            border-top: 1px solid #ddd;
+        }
+
+        #input, #username, #room {
+            flex-grow: 1;
+            padding: 10px;
+            margin-right: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        #input:focus, #username:focus, #room:focus {
+            outline: none;
+            border-color: #666;
+        }
+
+        /* Кнопки */
+        button {
+            padding: 10px 20px;
+            border: none;
+            background-color: #333;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #555;
+        }
+
+        button:disabled {
+            background-color: #888;
+            cursor: not-allowed;
+        }
+
+        /* Поле ввода данных для комнаты и пользователя */
+        .input-group {
+            display: flex;
+            padding: 15px;
+            background-color: #fff;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .input-group > input {
+            margin-right: 10px;
+        }
+
+        /* Мобильная оптимизация */
+        @media (max-width: 600px) {
+            .container {
+                width: 90%;
+            }
+
+            button {
+                padding: 8px 15px;
+            }
+
+            #input, #username, #room {
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        Socket.IO Chat
+    </div>
+
+
+    <div class="input-group">
+        <input id="username" autocomplete="off" placeholder="Enter your username"/>
+        <input id="room" autocomplete="off" placeholder="Enter room name"/>
+        <button id="join-btn">Join</button>
+        <button id="leave-btn" disabled>Leave</button>
+    </div>
+
+    <ul id="messages"></ul>
+
+    <form id="form" action="">
+        <input id="input" autocomplete="off" placeholder="Enter your message"/>
+        <button type="submit">Send</button>
+    </form>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+    const socket = io();
+    const form = document.getElementById('form');
+    const input = document.getElementById('input');
+    const messages = document.getElementById('messages');
+    const roomInput = document.getElementById('room');
+    const joinBtn = document.getElementById('join-btn');
+    const leaveBtn = document.getElementById('leave-btn');
+    const usernameInput = document.getElementById('username');
+
+    let currentRoom = null;
+    let username = '';
+
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (input.value && currentRoom && username) {
+            socket.emit('chat message', {room: currentRoom, msg: input.value, username});
+            input.value = '';
+        } else if (!currentRoom) {
+            alert('Please join a room first!');
+        } else if (!username) {
+            alert('Please enter your username!');
+        }
+    });
+
+    joinBtn.addEventListener('click', () => {
+        const room = roomInput.value.trim();
+        username = usernameInput.value.trim();
+        if (room && username) {
+            socket.emit('join room', room);
+            currentRoom = room;
+            roomInput.disabled = true;
+            usernameInput.disabled = true;
+            joinBtn.disabled = true;
+            leaveBtn.disabled = false;
+        } else {
+            alert('Please enter both username and room name!');
+        }
+    });
+
+    leaveBtn.addEventListener('click', () => {
+        if (currentRoom) {
+            socket.emit('leave room', currentRoom);
+            currentRoom = null;
+            usernameInput.disabled = false;
+            roomInput.disabled = false;
+            roomInput.value = '';
+            joinBtn.disabled = false;
+            leaveBtn.disabled = true;
+            messages.innerHTML = '';
+        }
+    });
+
+    socket.on('chat message', (data) => {
+        const item = document.createElement('li');
+        item.textContent = `${data.username}: ${data.msg}`;
+        messages.appendChild(item);
+        window.scrollTo(0, document.body.scrollHeight);
+    });
+</script>
+
+</body>
+</html>
